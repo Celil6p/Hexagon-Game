@@ -5,6 +5,14 @@ import { HexagonTile, HexagonTileProps } from '../components/HexagonTile';
 import { GameState, TileData } from '../types/gameTypes';
 import { generateDummyGameState } from '../data/dummyGameData';
 
+const modelNames = [
+  'hex_road_A', 'hex_road_A_sloped_high', 'hex_road_A_sloped_low',
+  'hex_road_B', 'hex_road_C', 'hex_road_D', 'hex_road_E', 'hex_road_F',
+  'hex_road_G', 'hex_road_H', 'hex_road_I', 'hex_road_J', 'hex_road_K',
+  'hex_road_L', 'hex_road_M'
+];
+
+
 export const useHexagonTiles = (size: number, tileSize: number, tileHeight: number) => {
   const [tiles, setTiles] = useState<HexagonTile[]>([]);
   const [scene] = useState(() => new THREE.Scene());
@@ -22,17 +30,19 @@ export const useHexagonTiles = (size: number, tileSize: number, tileHeight: numb
 
     const newTiles: HexagonTile[] = [];
 
+  
     gameState.tiles.forEach((tileData: TileData) => {
       const { q, r, terrain, ownerId } = tileData;
-      const color = getColorForTerrain(terrain, ownerId, gameState.players);
       
       const tileProps: HexagonTileProps = {
         q,
         r,
         size: tileSize,
         height: tileHeight,
-        color,
+        color: getColorForTerrain(terrain, ownerId, gameState.players),
+        modelName: modelNames[Math.floor(Math.random() * modelNames.length)],
       };
+      
       
       const tile = new HexagonTile(tileProps);
       scene.add(tile);

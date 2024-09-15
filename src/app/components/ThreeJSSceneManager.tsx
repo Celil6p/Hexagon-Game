@@ -77,10 +77,10 @@ const ThreeJSSceneManager
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Dev mode renders ligthing twice so dont for get to set this so 1.0 in the production
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.6); // Dev mode renders ligthing twice so dont for get to set this so 1.6 in the production
     directionalLight.position.set(size * tileSize, size * tileSize, size * tileSize);
     scene.add(directionalLight);
 
