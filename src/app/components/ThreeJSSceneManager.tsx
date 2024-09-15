@@ -10,7 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-interface CameraControlsProps {
+interface ThreeJSSceneManagerProps {
   mountRef: React.RefObject<HTMLDivElement>;
   scene: THREE.Scene;
   size: number;
@@ -19,7 +19,8 @@ interface CameraControlsProps {
   children: (camera: THREE.PerspectiveCamera | null, cameraPosition: React.MutableRefObject<THREE.Vector3>) => ReactNode;
 }
 
-const CameraControls: React.FC<CameraControlsProps> = ({
+const ThreeJSSceneManager
+: React.FC<ThreeJSSceneManagerProps> = ({
   mountRef,
   scene,
   size,
@@ -56,6 +57,8 @@ const CameraControls: React.FC<CameraControlsProps> = ({
   };
 
   useEffect(() => {
+    THREE.ColorManagement.enabled = true;
+    const currentMount = mountRef.current;
     if (!mountRef.current) return;
 
     const newCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -65,11 +68,28 @@ const CameraControls: React.FC<CameraControlsProps> = ({
       antialias: true,
       powerPreference: "high-performance"
     });
+    
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1;
+    renderer.setPixelRatio(window.devicePixelRatio);
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(size * tileSize, size * tileSize, size * tileSize);
+    scene.add(directionalLight);
+
+    // Log lighting setup
+    console.log('Lighting setup:', {
+      ambientLight: ambientLight.intensity,
+      directionalLight: directionalLight.intensity,
+      directionalLightPosition: directionalLight.position
+    });
 
     setGraphicsQuality('high');
 
@@ -156,7 +176,9 @@ const CameraControls: React.FC<CameraControlsProps> = ({
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('wheel', handleWheel);
       window.removeEventListener('resize', handleResize);
-      mountRef.current?.removeChild(renderer.domElement);
+      if (currentMount && renderer.domElement) {
+        currentMount.removeChild(renderer.domElement);
+      }
       document.removeEventListener('wheel', handleWheel);
     };
   }, [mountRef, scene, size, tileSize, tileHeight]);
@@ -171,7 +193,7 @@ const CameraControls: React.FC<CameraControlsProps> = ({
       <div className="absolute top-4 right-4 ui-element" onClick={handleDialogClick}>
         <Dialog>
           <DialogTrigger asChild>
-            <Button variant="outline">Settings</Button>
+            <Button variant="outline" className='text-white hover:text-black'>Settings</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]" onClick={handleDialogClick}>
             <DialogHeader>
@@ -189,4 +211,4 @@ const CameraControls: React.FC<CameraControlsProps> = ({
   );
 };
 
-export default CameraControls;
+export default ThreeJSSceneManager;

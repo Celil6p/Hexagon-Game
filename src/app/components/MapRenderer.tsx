@@ -17,7 +17,6 @@ const MapRenderer: React.FC<MapRendererProps> = ({
   tiles,
   focusedTile,
   setFocusedTile,
-  tileHeight,
   camera,
   cameraPosition,
 }) => {
@@ -35,46 +34,6 @@ const MapRenderer: React.FC<MapRendererProps> = ({
       setIsDragging(true);
     }
   }, []);
-
-  const handleClick = useCallback(
-    (event: MouseEvent) => {
-      if ((event.target as HTMLElement).closest('.ui-element')) return;
-      if (isDragging || !camera) return;
-
-      const mouse = new THREE.Vector2();
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
-
-      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-      const intersectionPoint = new THREE.Vector3();
-      raycaster.ray.intersectPlane(plane, intersectionPoint);
-
-      const clickedTile = findNearestTile(intersectionPoint, tiles);
-
-      if (clickedTile) {
-        focusOnTile(clickedTile);
-      }
-    },
-    [tiles, focusedTile, setFocusedTile, tileHeight, camera, isDragging]
-  );
-
-  const findNearestTile = (point: THREE.Vector3, tiles: HexagonTile[]): HexagonTile | null => {
-    let nearestTile: HexagonTile | null = null;
-    let minDistance = Infinity;
-
-    tiles.forEach(tile => {
-      const distance = point.distanceTo(tile.position);
-      if (distance < minDistance) {
-        minDistance = distance;
-        nearestTile = tile;
-      }
-    });
-
-    return nearestTile;
-  };
 
   const focusOnTile = useCallback((tile: HexagonTile) => {
     if (focusedTile) {
@@ -99,7 +58,47 @@ const MapRenderer: React.FC<MapRendererProps> = ({
         },
       });
     }
-  }, [focusedTile, setFocusedTile, tileHeight, camera, cameraPosition]);
+  }, [focusedTile, setFocusedTile, camera, cameraPosition]);
+
+  const handleClick = useCallback(
+    (event: MouseEvent) => {
+      if ((event.target as HTMLElement).closest('.ui-element')) return;
+      if (isDragging || !camera) return;
+
+      const mouse = new THREE.Vector2();
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, camera);
+
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const intersectionPoint = new THREE.Vector3();
+      raycaster.ray.intersectPlane(plane, intersectionPoint);
+
+      const clickedTile = findNearestTile(intersectionPoint, tiles);
+
+      if (clickedTile) {
+        focusOnTile(clickedTile);
+      }
+    },
+    [tiles, camera, isDragging, focusOnTile]
+  );
+
+  const findNearestTile = (point: THREE.Vector3, tiles: HexagonTile[]): HexagonTile | null => {
+    let nearestTile: HexagonTile | null = null;
+    let minDistance = Infinity;
+
+    tiles.forEach(tile => {
+      const distance = point.distanceTo(tile.position);
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestTile = tile;
+      }
+    });
+
+    return nearestTile;
+  };
 
   useEffect(() => {
     window.addEventListener('mousedown', handleMouseDown);

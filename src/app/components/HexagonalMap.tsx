@@ -2,8 +2,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import * as THREE from 'three';
-import CameraControls from './CameraControls';
+import ThreeJSSceneManager from './ThreeJSSceneManager';
 import MapRenderer from './MapRenderer';
 import { useHexagonTiles } from '../hooks/useHexagonTiles';
 import { HexagonTile } from './HexagonTile';
@@ -21,7 +20,7 @@ const HexagonalMap: React.FC<HexagonalMapProps> = ({ size, tileSize, tileHeight 
 
   return (
     <div ref={mountRef} className="w-full h-screen">
-      <CameraControls
+      <ThreeJSSceneManager
         mountRef={mountRef}
         scene={scene}
         size={size}
@@ -38,7 +37,7 @@ const HexagonalMap: React.FC<HexagonalMapProps> = ({ size, tileSize, tileHeight 
             cameraPosition={cameraPosition}
           />
         )}
-      </CameraControls>
+      </ThreeJSSceneManager>
     </div>
   );
 };

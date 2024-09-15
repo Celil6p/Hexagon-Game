@@ -2,44 +2,70 @@
 import { useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { HexagonTile, HexagonTileProps } from '../components/HexagonTile';
+import { GameState, TileData } from '../types/gameTypes';
+import { generateDummyGameState } from '../data/dummyGameData';
 
 export const useHexagonTiles = (size: number, tileSize: number, tileHeight: number) => {
-const [tiles, setTiles] = useState<HexagonTile[]>([]);
-const [scene] = useState(() => new THREE.Scene());
+  const [tiles, setTiles] = useState<HexagonTile[]>([]);
+  const [scene] = useState(() => new THREE.Scene());
+  const [gameState, setGameState] = useState<GameState | null>(null);
 
-useEffect(() => {
-const newTiles: HexagonTile[] = [];
+  // Generate the game state
+  useEffect(() => {
+    const newGameState = generateDummyGameState(size);
+    setGameState(newGameState);
+  }, [size]);
 
-for (let q = -size; q <= size; q++) {
-  for (let r = Math.max(-size, -q - size); r <= Math.min(size, -q + size); r++) {
-    const tileProps: HexagonTileProps = {
-      q,
-      r,
-      size: tileSize,
-      height: tileHeight,
-      color: getRandomColor(),
+  // Create and update tiles based on game state
+  useEffect(() => {
+    if (!gameState) return;
+
+    const newTiles: HexagonTile[] = [];
+
+    gameState.tiles.forEach((tileData: TileData) => {
+      const { q, r, terrain, ownerId } = tileData;
+      const color = getColorForTerrain(terrain, ownerId, gameState.players);
+      
+      const tileProps: HexagonTileProps = {
+        q,
+        r,
+        size: tileSize,
+        height: tileHeight,
+        color,
+      };
+      
+      const tile = new HexagonTile(tileProps);
+      scene.add(tile);
+      newTiles.push(tile);
+    });
+
+    setTiles(newTiles);
+
+    // Cleanup function to remove tiles from the scene
+    return () => {
+      newTiles.forEach(tile => scene.remove(tile));
     };
-    const tile = new HexagonTile(tileProps);
-    scene.add(tile);
-    newTiles.push(tile);
-  }
-}
+  }, [gameState, tileSize, tileHeight, scene]);
 
-setTiles(newTiles);
-
-// Add lights
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
-
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-directionalLight.position.set(1, 1, 1);
-scene.add(directionalLight);
-}, [size, tileSize, tileHeight, scene]);
-
-return { tiles, scene };
+  return { tiles, scene, gameState };
 };
 
-function getRandomColor(): string {
-const colors = ['#4CAF50', '#2196F3', '#FFC107', '#E91E63', '#9C27B0'];
-return colors[Math.floor(Math.random() * colors.length)];
+function getColorForTerrain(terrain: string, ownerId: string | null, players: GameState['players']): string {
+  if (ownerId) {
+    const owner = players.find(player => player.id === ownerId);
+    if (owner) return owner.color;
+  }
+
+  switch (terrain) {
+    case 'grass':
+      return '#4CAF50';
+    case 'forest':
+      return '#2E7D32';
+    case 'mountain':
+      return '#795548';
+    case 'water':
+      return '#2196F3';
+    default:
+      return '#9E9E9E';
+  }
 }
