@@ -18,9 +18,6 @@ interface MapRendererProps {
   camera: THREE.PerspectiveCamera | null;
   cameraPosition: MutableRefObject<THREE.Vector3>;
   renderer: THREE.WebGLRenderer | null;
-  setInfoBarOpen: (open: boolean) => void;
-  setDialogOpen: (open: boolean) => void;
-  setSelectedTilePosition: (position: { q: number; r: number } | null) => void;
 }
 
 const MapRenderer: React.FC<MapRendererProps> = ({
@@ -38,7 +35,6 @@ const MapRenderer: React.FC<MapRendererProps> = ({
     r: number;
   } | null>(null);
   const [focusedTile, setFocusedTile] = useState<HexagonTile | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const [quality, setQuality] = useState<"low" | "medium" | "high">("high");
 
 
@@ -66,7 +62,6 @@ const MapRenderer: React.FC<MapRendererProps> = ({
       setFocusedTile(tile);
       setSelectedTilePosition({ q: tile.q, r: tile.r });
       setInfoBarOpen(true);
-      setTimeout(()=>{{selectedTilePosition && console.log(`Clicked tile coordinates: q=${tile.q}, r=${tile.r}`);}} , 1000)
 
       if (camera) {
         const targetPosition = new THREE.Vector3();
@@ -116,7 +111,6 @@ const MapRenderer: React.FC<MapRendererProps> = ({
       const clickedTile = findNearestTile(intersectionPoint, tiles);
   
       if (clickedTile) {
-        {selectedTilePosition && console.log(`Prev Clicked tile coordinates: q=${selectedTilePosition.q}, r=${selectedTilePosition.r}`);}
         focusOnTile(clickedTile);        
       } else {
         if (focusedTile) {

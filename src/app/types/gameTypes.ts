@@ -12,8 +12,8 @@ export interface TileData {
     r: number;
     terrain: string;
     ownerId: string | null;
-    resources: any[]; // Replace 'any' with the actual type of resources
-    building: any | null; // Replace 'any' with the actual type of building
+    resources: { type: string; amount: number; }[]; // Replace 'any' with the actual type of resources
+    building: string | null; // Replace 'any' with the actual type of building
     canInteract: boolean;
   }
 

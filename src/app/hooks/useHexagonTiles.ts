@@ -4,10 +4,6 @@ import * as THREE from 'three';
 import { HexagonTile, HexagonTileProps } from '../components/HexagonTile';
 import { GameState, TileData } from '../types/gameTypes';
 
-const modelNames = [
-  'simple_tile_grass','simple_hexagon_forest','simple_hexagon_mountain','simple_hexagon_water'
-];
-
 interface APITileData {
   q: number;
   r: number;

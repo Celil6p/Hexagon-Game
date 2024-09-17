@@ -1,5 +1,5 @@
 // app/components/CameraControls.tsx
-import React, { useRef, useEffect, useState, ReactNode } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 import { HexagonTile } from "./HexagonTile";
 import MapRenderer from "./MapRenderer";
@@ -11,10 +11,7 @@ interface ThreeJSSceneManagerProps {
   tiles?: HexagonTile[];
   tileSize: number;
   tileHeight: number;
-  children: (
-    camera: THREE.PerspectiveCamera | null,
-    cameraPosition: React.MutableRefObject<THREE.Vector3>
-  ) => ReactNode;
+
 }
 
 const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
@@ -24,7 +21,6 @@ const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
   tiles,
   tileSize,
   tileHeight,
-  children,
 }) => {
   const [camera, setCamera] = useState<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -33,38 +29,8 @@ const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
   );
   const isDraggingRef = useRef(false);
   const lastMousePositionRef = useRef(new THREE.Vector2());
-  const [infoBarOpen, setInfoBarOpen] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedTilePosition, setSelectedTilePosition] = useState<{
-    q: number;
-    r: number;
-  } | null>(null);
-  const [quality, setQuality] = useState<"low" | "medium" | "high">("high");
   const config = {
     isDevelopment: process.env.NODE_ENV !== "production",
-  };
-
-  const setGraphicsQuality = (newQuality: "low" | "medium" | "high") => {
-    if (!rendererRef.current) return;
-
-    setQuality(newQuality);
-    switch (newQuality) {
-      case "low":
-        rendererRef.current.setPixelRatio(1);
-        rendererRef.current.toneMapping = THREE.NoToneMapping;
-        break;
-      case "medium":
-        rendererRef.current.setPixelRatio(
-          Math.min(window.devicePixelRatio, 1.5)
-        );
-        rendererRef.current.toneMapping = THREE.ReinhardToneMapping;
-        break;
-      case "high":
-        rendererRef.current.setPixelRatio(window.devicePixelRatio);
-        rendererRef.current.toneMapping = THREE.ACESFilmicToneMapping;
-        break;
-    }
-    rendererRef.current.setSize(window.innerWidth, window.innerHeight);
   };
 
   useEffect(() => {
@@ -119,8 +85,6 @@ const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
       directionalLight: directionalLight.intensity,
       directionalLightPosition: directionalLight.position,
     });
-
-    setGraphicsQuality("high");
 
     const updateCameraPosition = () => {
       const mapSize = size * tileSize;
@@ -286,18 +250,14 @@ const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
       }
       document.removeEventListener("wheel", handleWheel);
     };
-  }, [mountRef, scene, size, tileSize, tileHeight]);
+  }, [ config.isDevelopment, mountRef, scene, size, tileSize, tileHeight]);
 
   return (
     <>
-      {children(camera, cameraPositionRef)}
       <MapRenderer
         tiles={tiles}
         camera={camera}
         cameraPosition={cameraPositionRef}
-        setInfoBarOpen={setInfoBarOpen}
-        setDialogOpen={setDialogOpen}
-        setSelectedTilePosition={setSelectedTilePosition} 
         renderer={rendererRef.current}      />
     </>
   );
