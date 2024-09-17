@@ -86,31 +86,6 @@ const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
       directionalLightPosition: directionalLight.position,
     });
 
-    const updateCameraPosition = () => {
-      const mapSize = size * tileSize;
-      const extendedBottomBoundary = mapSize * 2.5;
-
-      cameraPositionRef.current.x = Math.max(
-        -mapSize,
-        Math.min(mapSize, cameraPositionRef.current.x)
-      );
-      cameraPositionRef.current.z = Math.max(
-        -extendedBottomBoundary,
-        Math.min(mapSize, cameraPositionRef.current.z)
-      );
-
-      newCamera.position.copy(cameraPositionRef.current);
-
-      const lookAtPoint = new THREE.Vector3(
-        cameraPositionRef.current.x,
-        0,
-        cameraPositionRef.current.z + cameraPositionRef.current.y
-      );
-
-      newCamera.lookAt(lookAtPoint);
-    };
-    updateCameraPosition();
-
     const addLandscapeSkybox = () => {
       const skyGeometry = new THREE.SphereGeometry(
         size * tileSize * 10,
@@ -157,6 +132,31 @@ const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
 
     addLandscapeSkybox();
 
+    const updateCameraPosition = () => {
+      const mapSize = size * tileSize;
+      const extendedBottomBoundary = mapSize * 3;
+
+      cameraPositionRef.current.x = Math.max(
+        -mapSize,
+        Math.min(mapSize, cameraPositionRef.current.x)
+      );
+      cameraPositionRef.current.z = Math.max(
+        -extendedBottomBoundary,
+        Math.min(mapSize, cameraPositionRef.current.z)
+      );
+
+      newCamera.position.copy(cameraPositionRef.current);
+
+      const lookAtPoint = new THREE.Vector3(
+        cameraPositionRef.current.x,
+        0,
+        cameraPositionRef.current.z + cameraPositionRef.current.y
+      );
+
+      newCamera.lookAt(lookAtPoint);
+    };
+    updateCameraPosition();
+
     const handleMouseDown = (event: MouseEvent) => {
       if ((event.target as HTMLElement).closest(".ui-element")) return;
       event.preventDefault();
@@ -177,7 +177,7 @@ const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
         deltaY * movementSpeed * cameraPositionRef.current.y);
 
       const mapSize = size * tileSize;
-      const extendedBottomBoundary = mapSize * 2.5;
+      const extendedBottomBoundary = mapSize * 3;
 
       cameraPositionRef.current.x = Math.max(-mapSize, Math.min(mapSize, newX));
       cameraPositionRef.current.z = Math.max(
