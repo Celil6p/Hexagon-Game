@@ -30,12 +30,14 @@ const HexagonalMap: React.FC<HexagonalMapProps> = ({ size, tileSize, tileHeight 
         {(camera, cameraPosition) => (
           <MapRenderer
             tiles={tiles}
-            focusedTile={focusedTile}
-            setFocusedTile={setFocusedTile}
-            tileHeight={tileHeight}
             camera={camera}
-            cameraPosition={cameraPosition}
-          />
+            cameraPosition={cameraPosition} renderer={null} setInfoBarOpen={function (open: boolean): void {
+              throw new Error('Function not implemented.');
+            } } setDialogOpen={function (open: boolean): void {
+              throw new Error('Function not implemented.');
+            } } setSelectedTilePosition={function (position: { q: number; r: number; } | null): void {
+              throw new Error('Function not implemented.');
+            } }          />
         )}
       </ThreeJSSceneManager>
     </div>

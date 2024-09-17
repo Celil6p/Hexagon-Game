@@ -1,54 +1,65 @@
 // app/components/CameraControls.tsx
-import React, { useRef, useEffect, useState, ReactNode } from 'react';
-import * as THREE from 'three';
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import React, { useRef, useEffect, useState, ReactNode } from "react";
+import * as THREE from "three";
+import { HexagonTile } from "./HexagonTile";
+import MapRenderer from "./MapRenderer";
 
 interface ThreeJSSceneManagerProps {
   mountRef: React.RefObject<HTMLDivElement>;
   scene: THREE.Scene;
   size: number;
+  tiles?: HexagonTile[];
   tileSize: number;
   tileHeight: number;
-  children: (camera: THREE.PerspectiveCamera | null, cameraPosition: React.MutableRefObject<THREE.Vector3>) => ReactNode;
+  children: (
+    camera: THREE.PerspectiveCamera | null,
+    cameraPosition: React.MutableRefObject<THREE.Vector3>
+  ) => ReactNode;
 }
 
-const ThreeJSSceneManager
-: React.FC<ThreeJSSceneManagerProps> = ({
+const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
   mountRef,
   scene,
   size,
+  tiles,
   tileSize,
   tileHeight,
   children,
 }) => {
   const [camera, setCamera] = useState<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const cameraPositionRef = useRef(new THREE.Vector3(0, size * tileSize, -size * tileSize));
+  const cameraPositionRef = useRef(
+    new THREE.Vector3(0, size * tileSize, -size * tileSize)
+  );
   const isDraggingRef = useRef(false);
   const lastMousePositionRef = useRef(new THREE.Vector2());
-  const [quality, setQuality] = useState<'low' | 'medium' | 'high'>('high');
+  const [infoBarOpen, setInfoBarOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedTilePosition, setSelectedTilePosition] = useState<{
+    q: number;
+    r: number;
+  } | null>(null);
+  const [quality, setQuality] = useState<"low" | "medium" | "high">("high");
+  const config = {
+    isDevelopment: process.env.NODE_ENV !== "production",
+  };
 
-  const setGraphicsQuality = (newQuality: 'low' | 'medium' | 'high') => {
+  const setGraphicsQuality = (newQuality: "low" | "medium" | "high") => {
     if (!rendererRef.current) return;
 
     setQuality(newQuality);
-    switch(newQuality) {
-      case 'low':
+    switch (newQuality) {
+      case "low":
         rendererRef.current.setPixelRatio(1);
         rendererRef.current.toneMapping = THREE.NoToneMapping;
         break;
-      case 'medium':
-        rendererRef.current.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+      case "medium":
+        rendererRef.current.setPixelRatio(
+          Math.min(window.devicePixelRatio, 1.5)
+        );
         rendererRef.current.toneMapping = THREE.ReinhardToneMapping;
         break;
-      case 'high':
+      case "high":
         rendererRef.current.setPixelRatio(window.devicePixelRatio);
         rendererRef.current.toneMapping = THREE.ACESFilmicToneMapping;
         break;
@@ -61,14 +72,19 @@ const ThreeJSSceneManager
     const currentMount = mountRef.current;
     if (!mountRef.current) return;
 
-    const newCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const newCamera = new THREE.PerspectiveCamera(
+      60,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
     setCamera(newCamera);
 
-    const renderer = new THREE.WebGLRenderer({ 
+    const renderer = new THREE.WebGLRenderer({
       antialias: true,
-      powerPreference: "high-performance"
+      powerPreference: "high-performance",
     });
-    
+
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -77,37 +93,108 @@ const ThreeJSSceneManager
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Dev mode renders ligthing twice so dont for get to set this so 1.0 in the production
+    const ambientLightIntensity = config.isDevelopment ? 0.5 : 1.0;
+    const directionalLightIntensity = config.isDevelopment ? 0.8 : 1.6;
+
+    const ambientLight = new THREE.AmbientLight(
+      0xffffff,
+      ambientLightIntensity
+    ); // Dev mode renders ligthing twice so dont for get to set this so 1.0 in the production
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.6); // Dev mode renders ligthing twice so dont for get to set this so 1.6 in the production
-    directionalLight.position.set(size * tileSize, size * tileSize, size * tileSize);
+    const directionalLight = new THREE.DirectionalLight(
+      0xffffff,
+      directionalLightIntensity
+    ); // Dev mode renders ligthing twice so dont for get to set this so 1.6 in the production
+    directionalLight.position.set(
+      size * tileSize,
+      size * tileSize,
+      size * tileSize
+    );
     scene.add(directionalLight);
 
     // Log lighting setup
-    console.log('Lighting setup:', {
+    console.log("Lighting setup:", {
       ambientLight: ambientLight.intensity,
       directionalLight: directionalLight.intensity,
-      directionalLightPosition: directionalLight.position
+      directionalLightPosition: directionalLight.position,
     });
 
-    setGraphicsQuality('high');
+    setGraphicsQuality("high");
 
     const updateCameraPosition = () => {
+      const mapSize = size * tileSize;
+      const extendedBottomBoundary = mapSize * 2.5;
+
+      cameraPositionRef.current.x = Math.max(
+        -mapSize,
+        Math.min(mapSize, cameraPositionRef.current.x)
+      );
+      cameraPositionRef.current.z = Math.max(
+        -extendedBottomBoundary,
+        Math.min(mapSize, cameraPositionRef.current.z)
+      );
+
       newCamera.position.copy(cameraPositionRef.current);
-      
+
       const lookAtPoint = new THREE.Vector3(
         cameraPositionRef.current.x,
         0,
         cameraPositionRef.current.z + cameraPositionRef.current.y
       );
-      
+
       newCamera.lookAt(lookAtPoint);
     };
     updateCameraPosition();
 
+    const addLandscapeSkybox = () => {
+      const skyGeometry = new THREE.SphereGeometry(
+        size * tileSize * 10,
+        64,
+        64
+      );
+      const uniforms = {
+        skyColor: { value: new THREE.Color(0x87ceeb) }, // Sky blue
+        groundColor: { value: new THREE.Color(0x228b22) }, // Forest green
+        horizonColor: { value: new THREE.Color(0xadd8e6) }, // Light blue for horizon
+        offset: { value: -0.2 }, // Adjust this to change the size of the green area
+        exponent: { value: 0.6 }, // Adjust this to change the smoothness of the transition
+      };
+      const skyMaterial = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: `
+      varying vec3 vWorldPosition;
+      void main() {
+        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        vWorldPosition = worldPosition.xyz;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+        fragmentShader: `
+      uniform vec3 skyColor;
+      uniform vec3 groundColor;
+      uniform vec3 horizonColor;
+      uniform float offset;
+      uniform float exponent;
+      varying vec3 vWorldPosition;
+      void main() {
+        float h = normalize(vWorldPosition).y + offset;
+        float t = pow(max(0.0, min(1.0, (h * 0.5 + 0.5))), exponent);
+        vec3 color = mix(groundColor, horizonColor, smoothstep(0.0, 0.1, t));
+        color = mix(color, skyColor, smoothstep(0.1, 1.0, t));
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `,
+        side: THREE.BackSide,
+      });
+      const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+      scene.add(sky);
+    };
+
+    addLandscapeSkybox();
+
     const handleMouseDown = (event: MouseEvent) => {
-      if ((event.target as HTMLElement).closest('.ui-element')) return;
+      if ((event.target as HTMLElement).closest(".ui-element")) return;
       event.preventDefault();
       isDraggingRef.current = true;
       lastMousePositionRef.current.set(event.clientX, event.clientY);
@@ -115,14 +202,25 @@ const ThreeJSSceneManager
 
     const handleMouseMove = (event: MouseEvent) => {
       if (!isDraggingRef.current) return;
-    
+
       const deltaX = event.clientX - lastMousePositionRef.current.x;
       const deltaY = event.clientY - lastMousePositionRef.current.y;
-    
+
       const movementSpeed = 0.01;
-      cameraPositionRef.current.x += deltaX * movementSpeed * cameraPositionRef.current.y;
-      cameraPositionRef.current.z += deltaY * movementSpeed * cameraPositionRef.current.y;
-    
+      const newX = (cameraPositionRef.current.x +=
+        deltaX * movementSpeed * cameraPositionRef.current.y);
+      const newZ = (cameraPositionRef.current.z +=
+        deltaY * movementSpeed * cameraPositionRef.current.y);
+
+      const mapSize = size * tileSize;
+      const extendedBottomBoundary = mapSize * 2.5;
+
+      cameraPositionRef.current.x = Math.max(-mapSize, Math.min(mapSize, newX));
+      cameraPositionRef.current.z = Math.max(
+        -extendedBottomBoundary,
+        Math.min(mapSize, newZ)
+      );
+
       updateCameraPosition();
       lastMousePositionRef.current.set(event.clientX, event.clientY);
     };
@@ -133,24 +231,29 @@ const ThreeJSSceneManager
     };
 
     const handleWheel = (event: WheelEvent) => {
-      if ((event.target as HTMLElement).closest('.ui-element')) return;
+      if ((event.target as HTMLElement).closest(".ui-element")) return;
       const zoomSpeed = 0.1;
       const zoomDelta = event.deltaY * zoomSpeed;
-    
+
       const forward = new THREE.Vector3(0, -1, 1).normalize();
-    
-      const newPosition = cameraPositionRef.current.clone().addScaledVector(forward, zoomDelta);
-    
+
+      const newPosition = cameraPositionRef.current
+        .clone()
+        .addScaledVector(forward, zoomDelta);
+
       const distanceToGround = newPosition.y;
-    
-      if (distanceToGround > tileSize * 2 && distanceToGround < size * tileSize * 4) {
+
+      if (
+        distanceToGround > tileSize * 2 &&
+        distanceToGround < size * tileSize * 4
+      ) {
         cameraPositionRef.current.copy(newPosition);
       }
-    
+
       updateCameraPosition();
     };
 
-    document.addEventListener('wheel', handleWheel, { passive: false });
+    document.addEventListener("wheel", handleWheel, { passive: false });
 
     const animate = () => {
       requestAnimationFrame(animate);
@@ -163,50 +266,39 @@ const ThreeJSSceneManager
       renderer.setSize(window.innerWidth, window.innerHeight);
     };
 
-    window.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('wheel', handleWheel);
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("wheel", handleWheel);
+    window.addEventListener("resize", handleResize);
+
     animate();
 
     return () => {
-      window.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("resize", handleResize);
+
       if (currentMount && renderer.domElement) {
         currentMount.removeChild(renderer.domElement);
       }
-      document.removeEventListener('wheel', handleWheel);
+      document.removeEventListener("wheel", handleWheel);
     };
   }, [mountRef, scene, size, tileSize, tileHeight]);
-
-  const handleDialogClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
 
   return (
     <>
       {children(camera, cameraPositionRef)}
-      <div className="absolute top-4 right-4 ui-element" onClick={handleDialogClick}>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline" className='text-white hover:text-black'>Settings</Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]" onClick={handleDialogClick}>
-            <DialogHeader>
-              <DialogTitle>Graphics Settings</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <Button className={`border hover:bg-white hover:text-black ${quality == "low" ? "bg-white text-black":""}`}  onClick={() => setGraphicsQuality('low')}>Low</Button>
-              <Button className={`border hover:bg-white hover:text-black ${quality == "medium" ? "bg-white text-black":""}`} onClick={() => setGraphicsQuality('medium')}>Medium</Button>
-              <Button className={`border hover:bg-white hover:text-black ${quality == "high" ? "bg-white text-black":""}`} onClick={() => setGraphicsQuality('high')}>High</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+      <MapRenderer
+        tiles={tiles}
+        camera={camera}
+        cameraPosition={cameraPositionRef}
+        setInfoBarOpen={setInfoBarOpen}
+        setDialogOpen={setDialogOpen}
+        setSelectedTilePosition={setSelectedTilePosition} 
+        renderer={rendererRef.current}      />
     </>
   );
 };

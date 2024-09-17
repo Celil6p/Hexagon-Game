@@ -8,14 +8,14 @@ export interface Resource {
 }
 
 export interface TileData {
-  q: number;
-  r: number;
-  terrain: string;
-  ownerId: string | null;
-  resources: Resource[];
-  building: string | null;
-  canInteract: boolean;
-}
+    q: number;
+    r: number;
+    terrain: string;
+    ownerId: string | null;
+    resources: any[]; // Replace 'any' with the actual type of resources
+    building: any | null; // Replace 'any' with the actual type of building
+    canInteract: boolean;
+  }
 
 export interface PlayerData {
   id: string;

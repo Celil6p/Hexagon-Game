@@ -14,6 +14,11 @@ export class HexagonTile extends THREE.Group {
   private focusBorder: THREE.LineSegments | null = null;
   public q: number;
   public r: number;
+  public showInfoBar: (() => void) | null = null;
+  public showDialogBar: (() => void) | null = null;
+  public hideInfoBar: (() => void) | null = null;
+  public hideDialogBar: (() => void) | null = null;
+  public readonly isHexagonTile = true;
   private height: number;
   private size: number;
   private modelInstance: THREE.Group | null = null;
@@ -66,6 +71,21 @@ export class HexagonTile extends THREE.Group {
     this.addGLTFModel(modelName, size, height);
   }
 
+  handleClick() {
+    this.addFocusBorder();
+    if (this.showInfoBar) this.showInfoBar();
+  }
+
+  handleDoubleClick() {
+    if (this.showDialogBar) this.showDialogBar();
+  }
+
+  reset() {
+    this.removeFocusBorder();
+    if (this.hideInfoBar) this.hideInfoBar();
+    if (this.hideDialogBar) this.hideDialogBar();
+  }
+
   private static getGLTFLoader() {
     if (!HexagonTile.gltfLoader) {
       HexagonTile.gltfLoader = new GLTFLoader();
@@ -111,10 +131,10 @@ export class HexagonTile extends THREE.Group {
       this.modelInstance = model.clone();
       
       const scale = size / 2;
-      this.modelInstance.scale.set(0.86, scale, 0.86);
-      this.modelInstance.position.set(0, height + 0.3, 0);
+      this.modelInstance.scale.set(size, scale, size);
+      this.modelInstance.position.set(0, height , 0);
       
-      this.modelInstance.rotation.y = 10.993;
+      this.modelInstance.rotation.y =0;    //10.993; for free assets
 
       this.add(this.modelInstance);
     } catch (error) {
@@ -158,10 +178,12 @@ export class HexagonTile extends THREE.Group {
       line.position.set(offset[0], offset[1], offset[2]);
       group.add(line);
     });
+
+    const scale = this.size / 8;
   
     this.focusBorder = group as unknown as THREE.LineSegments;
     this.focusBorder.rotation.x = -Math.PI / 2;
-    this.focusBorder.position.y = this.height + 0.3;
+    this.focusBorder.position.y = this.height + scale  // 0.3; for free assets
     this.focusBorder.scale.set(this.scale.x, this.scale.y, this.scale.z);
     this.add(this.focusBorder);
   }

@@ -3,25 +3,51 @@ import { useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { HexagonTile, HexagonTileProps } from '../components/HexagonTile';
 import { GameState, TileData } from '../types/gameTypes';
-import { generateDummyGameState } from '../data/dummyGameData';
 
 const modelNames = [
-  'hex_road_A', 'hex_road_A_sloped_high', 'hex_road_A_sloped_low',
-  'hex_road_B', 'hex_road_C', 'hex_road_D', 'hex_road_E', 'hex_road_F',
-  'hex_road_G', 'hex_road_H', 'hex_road_I', 'hex_road_J', 'hex_road_K',
-  'hex_road_L', 'hex_road_M'
+  'simple_tile_grass','simple_hexagon_forest','simple_hexagon_mountain','simple_hexagon_water'
 ];
 
+interface APITileData {
+  q: number;
+  r: number;
+  terrain: string;
+}
 
 export const useHexagonTiles = (size: number, tileSize: number, tileHeight: number) => {
   const [tiles, setTiles] = useState<HexagonTile[]>([]);
   const [scene] = useState(() => new THREE.Scene());
   const [gameState, setGameState] = useState<GameState | null>(null);
 
-  // Generate the game state
+  // Fetch tile data from API
   useEffect(() => {
-    const newGameState = generateDummyGameState(size);
-    setGameState(newGameState);
+    const fetchTileData = async () => {
+      try {
+        const response = await fetch(`http://localhost:8080/procedural/${size}`);
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const apiTileData: APITileData[] = await response.json();
+        
+        // Convert API data to GameState
+        const newGameState: GameState = {
+          tiles: apiTileData.map(tile => ({
+            ...tile,
+            ownerId: null,
+            resources: [],  // Add default values for missing properties
+            building: null,
+            canInteract: true
+          } as TileData)),
+          players: [] // Assuming no players initially
+        };
+        
+        setGameState(newGameState);
+      } catch (error) {
+        console.error('Failed to fetch tile data:', error);
+      }
+    };
+
+    fetchTileData();
   }, [size]);
 
   // Create and update tiles based on game state
@@ -30,7 +56,6 @@ export const useHexagonTiles = (size: number, tileSize: number, tileHeight: numb
 
     const newTiles: HexagonTile[] = [];
 
-  
     gameState.tiles.forEach((tileData: TileData) => {
       const { q, r, terrain, ownerId } = tileData;
       
@@ -40,9 +65,8 @@ export const useHexagonTiles = (size: number, tileSize: number, tileHeight: numb
         size: tileSize,
         height: tileHeight,
         color: getColorForTerrain(terrain, ownerId, gameState.players),
-        modelName: modelNames[Math.floor(Math.random() * modelNames.length)],
+        modelName: getModelNameForTerrain(terrain)
       };
-      
       
       const tile = new HexagonTile(tileProps);
       scene.add(tile);
@@ -77,5 +101,20 @@ function getColorForTerrain(terrain: string, ownerId: string | null, players: Ga
       return '#2196F3';
     default:
       return '#9E9E9E';
+  }
+}
+
+function getModelNameForTerrain(terrain: string): string {
+  switch (terrain) {
+    case 'grass':
+      return 'simple_tile_grass';
+    case 'forest':
+      return 'simple_tile_forest';
+    case 'mountain':
+      return 'simple_tile_mountain';
+    case 'water':
+      return 'simple_tile_water';
+    default:
+      return 'simple_tile_grass'; // Default to grass if unknown terrain
   }
 }
