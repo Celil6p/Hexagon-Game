@@ -8,12 +8,16 @@ export interface HexagonTileProps {
   height: number;
   color: string;
   modelName: string;
+  mapLevel: number;
+  parentTile?: { q: number; r: number };
 }
 
 export class HexagonTile extends THREE.Group {
   private focusBorder: THREE.LineSegments | null = null;
   public q: number;
   public r: number;
+  public color: string;
+  public mapLevel: number;
   public showInfoBar: (() => void) | null = null;
   public showDialogBar: (() => void) | null = null;
   public hideInfoBar: (() => void) | null = null;
@@ -26,13 +30,15 @@ export class HexagonTile extends THREE.Group {
   private static loadedModels: { [key: string]: THREE.Group } = {};
   private static modelLoadPromises: { [key: string]: Promise<THREE.Group> } = {};
 
-  constructor({ q, r, size, height, color, modelName }: HexagonTileProps) {
+  constructor({ q, r, size, height, color, modelName, mapLevel }: HexagonTileProps) {
     super();
 
     this.q = q;
     this.r = r;
     this.height = height;
     this.size = size;
+    this.mapLevel = mapLevel
+    this.color = color;
 
     // Create the base hexagon
     const shape = new THREE.Shape();
@@ -78,6 +84,15 @@ export class HexagonTile extends THREE.Group {
 
   handleDoubleClick() {
     if (this.showDialogBar) this.showDialogBar();
+  }
+
+  update() {
+    // Perform any per-frame updates here
+    // For example, you could rotate the model, animate the focus border, etc.
+    if (this.modelInstance) {
+      // Example: slowly rotate the model
+      // this.modelInstance.rotation.y += 0.01;
+    }
   }
 
   reset() {

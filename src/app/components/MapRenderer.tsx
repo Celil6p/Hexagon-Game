@@ -14,10 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 interface MapRendererProps {
-  tiles?: HexagonTile[];
+  tiles: HexagonTile[];
   camera: THREE.PerspectiveCamera | null;
   cameraPosition: MutableRefObject<THREE.Vector3>;
   renderer: THREE.WebGLRenderer | null;
+  mapLevel: number;
+  onDescend: (newMapData: { q: number; r: number; mapLevel: number; parentTile?: { q: number; r: number } }) => void;
 }
 
 const MapRenderer: React.FC<MapRendererProps> = ({
@@ -25,16 +27,15 @@ const MapRenderer: React.FC<MapRendererProps> = ({
   camera,
   cameraPosition,
   renderer,
+  mapLevel,
+  onDescend
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartPosition = useRef(new THREE.Vector2());
   const [infoBarOpen, setInfoBarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedTilePosition, setSelectedTilePosition] = useState<{
-    q: number;
-    r: number;
-  } | null>(null);
   const [focusedTile, setFocusedTile] = useState<HexagonTile | null>(null);
+  //const [currentMapLevel, setCurrentMapLevel] = useState(mapLevel); // Assuming we start at level 2
   const [quality, setQuality] = useState<"low" | "medium" | "high">("high");
 
 
@@ -60,7 +61,6 @@ const MapRenderer: React.FC<MapRendererProps> = ({
 
       tile.addFocusBorder();
       setFocusedTile(tile);
-      setSelectedTilePosition({ q: tile.q, r: tile.r });
       setInfoBarOpen(true);
 
       if (camera) {
@@ -85,7 +85,6 @@ const MapRenderer: React.FC<MapRendererProps> = ({
     },
     [
       focusedTile,
-      setSelectedTilePosition,
       setInfoBarOpen,
       camera,
       cameraPosition,
@@ -116,13 +115,12 @@ const MapRenderer: React.FC<MapRendererProps> = ({
         if (focusedTile) {
           focusedTile.reset();
           setFocusedTile(null);
-          setSelectedTilePosition(null);
           setInfoBarOpen(false);
           setDialogOpen(false);
         }
       }
     },
-    [tiles, camera, isDragging, focusOnTile, focusedTile, setSelectedTilePosition, setInfoBarOpen, setDialogOpen]
+    [tiles, camera, isDragging, focusOnTile, focusedTile, setFocusedTile, setInfoBarOpen, setDialogOpen]
   );
 
   const findNearestTile = (point: THREE.Vector3, tiles?: HexagonTile[]): HexagonTile | null => {
@@ -141,6 +139,31 @@ const MapRenderer: React.FC<MapRendererProps> = ({
   
     return nearestTile;
   };
+
+  const handleDescend = useCallback(() => {
+    console.log("Descend Pressed");
+    
+    if (focusedTile && mapLevel > 1) {
+      const selectedTile = tiles.find(tile => tile.q === focusedTile.q && tile.r === focusedTile.r);
+      
+      
+      if (selectedTile) {
+        console.log("Selected Tile Recognized");
+        const newMapLevel = Math.max(selectedTile.mapLevel - 1, 1);
+        const newMapData = {
+          q: 0,
+          r: 0,
+          mapLevel: newMapLevel,
+          parentTile: { q: selectedTile.q, r: selectedTile.r }
+        };
+        console.log(`newMapData: Level:${newMapData.mapLevel} Parent q:${newMapData.parentTile.q} r:${newMapData.parentTile.r}`);
+        onDescend(newMapData);
+        //setCurrentMapLevel(newMapLevel);
+      }
+    }
+    setFocusedTile(null);
+    setInfoBarOpen(false);
+  }, [focusedTile, tiles, onDescend, mapLevel]);
 
   const setGraphicsQuality = (newQuality: "low" | "medium" | "high") => {
     if (!renderer) return;
@@ -177,6 +200,10 @@ const MapRenderer: React.FC<MapRendererProps> = ({
       window.removeEventListener('click', handleClick);
     };
   }, [handleMouseDown, handleMouseMove, handleClick, tiles]);
+
+  useEffect(() => {
+    console.log("Tiles in MapRenderer:", tiles);
+  }, [tiles]);
 
   return <>
   <div className="absolute top-4 right-4 ui-element" onClick={(e) => e.stopPropagation()}>        
@@ -226,14 +253,18 @@ const MapRenderer: React.FC<MapRendererProps> = ({
           <SheetHeader>
             <SheetTitle>Tile Info</SheetTitle>
             <SheetDescription>
-              {selectedTilePosition && (
+              {focusedTile && (
                 <>
                   <p>
-                    Position: ({selectedTilePosition.q}, {selectedTilePosition.r})
+                    Position: ({focusedTile?.q}, {focusedTile?.r})
+                    Level: {focusedTile?.mapLevel}
                   </p>
+
                   {/* Add more tile information here */}
                 </>
               )}
+
+              <Button onClick={handleDescend}>Descend</Button>
             </SheetDescription>
           </SheetHeader>
         </SheetContent>

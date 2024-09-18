@@ -1,17 +1,18 @@
-// app/components/CameraControls.tsx
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import * as THREE from "three";
 import { HexagonTile } from "./HexagonTile";
 import MapRenderer from "./MapRenderer";
+import { gsap } from 'gsap';
 
 interface ThreeJSSceneManagerProps {
   mountRef: React.RefObject<HTMLDivElement>;
   scene: THREE.Scene;
   size: number;
-  tiles?: HexagonTile[];
+  tiles: HexagonTile[];
   tileSize: number;
   tileHeight: number;
-
+  mapLevel: number;
+  onDescend: (newMapData: { q: number; r: number; mapLevel: number; parentTile?: { q: number; r: number } }) => void;
 }
 
 const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
@@ -21,17 +22,95 @@ const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
   tiles,
   tileSize,
   tileHeight,
+  mapLevel,
+  onDescend
 }) => {
   const [camera, setCamera] = useState<THREE.PerspectiveCamera | null>(null);
+  const [currentTiles, setCurrentTiles] = useState<HexagonTile[]>(tiles);
+  const [overlayColor, setOverlayColor] = useState('#000000');
+  const fadeOverlayRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraPositionRef = useRef(
     new THREE.Vector3(0, size * tileSize, -size * tileSize)
   );
   const isDraggingRef = useRef(false);
   const lastMousePositionRef = useRef(new THREE.Vector2());
-  const config = {
-    isDevelopment: process.env.NODE_ENV !== "production",
-  };
+  // const config = {
+  //   isDevelopment: process.env.NODE_ENV !== "production",
+  // };
+
+  const clearScene = useCallback(() => {
+    scene.children = scene.children.filter(child => !(child instanceof HexagonTile));
+  }, [scene]);
+
+  const updateScene = useCallback((newTiles: HexagonTile[]) => {
+    clearScene();
+    newTiles.forEach(tile => scene.add(tile));
+    setCurrentTiles(newTiles);
+  }, [clearScene, scene]);
+
+  useEffect(() => {
+    updateScene(tiles);
+  }, [tiles, updateScene]);
+
+  const handleDescend = useCallback((newMapData: { q: number; r: number; mapLevel: number; parentTile?: { q: number; r: number } }) => {
+    console.log(`Data passed to SceneManager: newMapData: Level:${newMapData.mapLevel} Parent q:${newMapData.parentTile?.q} r:${newMapData.parentTile?.r}`);
+    
+    if (fadeOverlayRef.current && camera) {
+      console.log("Fade overlay working");
+      
+      // Find the focused tile
+      const focusedTile = currentTiles.find(tile => tile.q === newMapData.parentTile?.q && tile.r === newMapData.parentTile?.r);
+      
+      if (focusedTile) {
+        const tilePosition = new THREE.Vector3();
+        focusedTile.getWorldPosition(tilePosition);
+        
+        // Get the tile's color
+        const tileColor = focusedTile.color || '#000000';
+        setOverlayColor(tileColor);
+        
+        // Store the original camera position
+        const originalPosition = camera.position.clone();
+        const originalLookAt = new THREE.Vector3(0, 0, 0);
+        camera.getWorldDirection(originalLookAt).multiplyScalar(size * tileSize).add(camera.position);
+  
+        // Approach the tile and fade out simultaneously
+        gsap.timeline()
+          .to(camera.position, {
+            duration: 1,
+            x: tilePosition.x,
+            y: tilePosition.y + tileSize * 2, // Hover above the tile
+            z: tilePosition.z,
+            onUpdate: () => {
+              camera.lookAt(tilePosition);
+            },
+          }, 0) // Start at 0 seconds
+          .to(fadeOverlayRef.current, {
+            duration: 1,
+            opacity: 1,
+          }, 0) // Start at 0 seconds
+          .call(() => {
+            onDescend(newMapData);
+  
+            // Reset camera to original position
+            camera.position.copy(originalPosition);
+            cameraPositionRef.current = originalPosition;
+            camera.lookAt(originalLookAt);
+          })
+          .to(fadeOverlayRef.current, {
+            duration: 1,
+            opacity: 0,
+          });
+      } else {
+        console.error("Focused tile not found");
+      }
+    } else {
+      console.error("Fade overlay or camera is not available");
+    }
+  }, [camera, size, tileSize, onDescend, currentTiles]);
+
+
 
   useEffect(() => {
     THREE.ColorManagement.enabled = true;
@@ -49,7 +128,9 @@ const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: "high-performance",
+      alpha: true,
     });
+    renderer.setClearColor(0x000000, 0);
 
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -59,8 +140,11 @@ const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    const ambientLightIntensity = config.isDevelopment ? 0.5 : 1.0;
-    const directionalLightIntensity = config.isDevelopment ? 0.8 : 1.6;
+    // const ambientLightIntensity = config.isDevelopment ? 0.5 : 1.0;
+    // const directionalLightIntensity = config.isDevelopment ? 0.8 : 1.6;
+
+    const ambientLightIntensity = 0.5;
+    const directionalLightIntensity = 0.8;
 
     const ambientLight = new THREE.AmbientLight(
       0xffffff,
@@ -219,8 +303,14 @@ const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
 
     document.addEventListener("wheel", handleWheel, { passive: false });
 
+    
     const animate = () => {
       requestAnimationFrame(animate);
+      currentTiles.forEach(tile => {
+        if (tile.update) {
+          tile.update();
+        }
+      });
       renderer.render(scene, newCamera);
     };
 
@@ -228,7 +318,7 @@ const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
       newCamera.aspect = window.innerWidth / window.innerHeight;
       newCamera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
-    };
+    };  
 
     window.addEventListener("mousedown", handleMouseDown);
     window.addEventListener("mousemove", handleMouseMove);
@@ -250,15 +340,50 @@ const ThreeJSSceneManager: React.FC<ThreeJSSceneManagerProps> = ({
       }
       document.removeEventListener("wheel", handleWheel);
     };
-  }, [ config.isDevelopment, mountRef, scene, size, tileSize, tileHeight]);
+  }, [/*config.isDevelopment*/, mountRef, scene, size, tileSize, tileHeight, currentTiles]);
+
+  useEffect(() => {
+    currentTiles.forEach(tile => {
+      if (!scene.children.includes(tile)) {
+        scene.add(tile);
+      }
+    });
+  }, [currentTiles, scene]);
+
+  useEffect(() => {
+    console.log("Tiles in SceneManager:", tiles);
+  }, [tiles]);
+ 
+
+  useEffect(() => {
+    console.log("currentTiles in SceneManager:", currentTiles);
+  }, [currentTiles]);
+
 
   return (
     <>
+      <div 
+        ref={fadeOverlayRef} 
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: overlayColor,
+          opacity: 0,
+          pointerEvents: 'none',
+          zIndex: 1000
+        }}
+      />
       <MapRenderer
-        tiles={tiles}
+        tiles={currentTiles}
         camera={camera}
         cameraPosition={cameraPositionRef}
-        renderer={rendererRef.current}      />
+        renderer={rendererRef.current}     
+        mapLevel={mapLevel}  // Add this line
+        onDescend={handleDescend}
+        />
     </>
   );
 };

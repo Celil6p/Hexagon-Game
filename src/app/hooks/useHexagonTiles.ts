@@ -10,7 +10,7 @@ interface APITileData {
   terrain: string;
 }
 
-export const useHexagonTiles = (size: number, tileSize: number, tileHeight: number) => {
+export const useHexagonTiles = (size: number, tileSize: number, tileHeight: number, mapLevel: number) => {
   const [tiles, setTiles] = useState<HexagonTile[]>([]);
   const [scene] = useState(() => new THREE.Scene());
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -44,7 +44,7 @@ export const useHexagonTiles = (size: number, tileSize: number, tileHeight: numb
     };
 
     fetchTileData();
-  }, [size]);
+  }, [size, mapLevel]);
 
   // Create and update tiles based on game state
   useEffect(() => {
@@ -61,7 +61,8 @@ export const useHexagonTiles = (size: number, tileSize: number, tileHeight: numb
         size: tileSize,
         height: tileHeight,
         color: getColorForTerrain(terrain, ownerId, gameState.players),
-        modelName: getModelNameForTerrain(terrain)
+        modelName: getModelNameForTerrain(terrain),
+        mapLevel,
       };
       
       const tile = new HexagonTile(tileProps);
@@ -75,7 +76,7 @@ export const useHexagonTiles = (size: number, tileSize: number, tileHeight: numb
     return () => {
       newTiles.forEach(tile => scene.remove(tile));
     };
-  }, [gameState, tileSize, tileHeight, scene]);
+  }, [gameState, tileSize, tileHeight, scene, mapLevel]);
 
   return { tiles, scene, gameState };
 };
