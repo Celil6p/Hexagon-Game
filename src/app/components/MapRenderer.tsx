@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import * as THREE from "three";
 import { HexagonTile } from "./HexagonTile";
+import { Player } from "./Player";
 import gsap from "gsap";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -16,10 +17,13 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 interface MapRendererProps {
   tiles: HexagonTile[];
   camera: THREE.PerspectiveCamera | null;
-  cameraPosition: MutableRefObject<THREE.Vector3>;
+  cameraPosition: MutableRefObject<THREE.Vector3> | null;
   renderer: THREE.WebGLRenderer | null;
   mapLevel: number;
+  player: Player | null;
+  onMovePlayer: (q: number, r: number) => void;
   onDescend: (newMapData: { q: number; r: number; mapLevel: number; parentTile?: { q: number; r: number } }) => void;
+  onAscend: (newMapData: { mapLevel: number; parentTile?: { q: number; r: number } }) => void;
 }
 
 const MapRenderer: React.FC<MapRendererProps> = ({
@@ -28,14 +32,16 @@ const MapRenderer: React.FC<MapRendererProps> = ({
   cameraPosition,
   renderer,
   mapLevel,
-  onDescend
+  player,
+  onMovePlayer,
+  onDescend,
+  onAscend
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartPosition = useRef(new THREE.Vector2());
   const [infoBarOpen, setInfoBarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [focusedTile, setFocusedTile] = useState<HexagonTile | null>(null);
-  //const [currentMapLevel, setCurrentMapLevel] = useState(mapLevel); // Assuming we start at level 2
   const [quality, setQuality] = useState<"low" | "medium" | "high">("high");
 
 
@@ -58,70 +64,50 @@ const MapRenderer: React.FC<MapRendererProps> = ({
       if (focusedTile) {
         focusedTile.removeFocusBorder();
       }
-
+  
       tile.addFocusBorder();
       setFocusedTile(tile);
       setInfoBarOpen(true);
-
-      if (camera) {
+  
+      if (camera && cameraPosition) {
         const targetPosition = new THREE.Vector3();
         tile.getWorldPosition(targetPosition);
-
         gsap.to(cameraPosition.current, {
           duration: 1,
           x: targetPosition.x,
-          z: targetPosition.z - camera.position.y,
+          z: targetPosition.z + camera.position.y, // Changed from - to +
           ease: "power2.inOut",
           onUpdate: () => {
             camera.position.copy(cameraPosition.current);
             camera.lookAt(
               cameraPosition.current.x,
               0,
-              cameraPosition.current.z + camera.position.y
+              cameraPosition.current.z - camera.position.y // Changed from + to -
             );
           },
         });
       }
     },
-    [
-      focusedTile,
-      setInfoBarOpen,
-      camera,
-      cameraPosition,
-    ]
+    [focusedTile, setInfoBarOpen, camera, cameraPosition]
   );
 
-  const handleClick = useCallback(
-    (event: MouseEvent) => {
-      if ((event.target as HTMLElement).closest('.ui-element')) return;
-      if (isDragging || !camera || !tiles || tiles.length === 0) return;
-  
-      const mouse = new THREE.Vector2();
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-  
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
-  
-      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-      const intersectionPoint = new THREE.Vector3();
-      raycaster.ray.intersectPlane(plane, intersectionPoint);
-  
-      const clickedTile = findNearestTile(intersectionPoint, tiles);
-  
-      if (clickedTile) {
-        focusOnTile(clickedTile);        
+  const moveToTile = useCallback((tile: HexagonTile) => {
+    
+    if (player) {
+      const playerCoords = player.getCoordinates();
+      const distance = Math.max(
+        Math.abs(tile.q - playerCoords.q),
+        Math.abs(tile.r - playerCoords.r),
+        Math.abs(tile.q + tile.r - playerCoords.q - playerCoords.r)
+      );
+
+      if (distance < 4) {
+        onMovePlayer(tile.q, tile.r);
       } else {
-        if (focusedTile) {
-          focusedTile.reset();
-          setFocusedTile(null);
-          setInfoBarOpen(false);
-          setDialogOpen(false);
-        }
+        console.log("Can't move there - too far!");
       }
-    },
-    [tiles, camera, isDragging, focusOnTile, focusedTile, setFocusedTile, setInfoBarOpen, setDialogOpen]
-  );
+    }
+  }, [player, onMovePlayer]);
 
   const findNearestTile = (point: THREE.Vector3, tiles?: HexagonTile[]): HexagonTile | null => {
     if (!tiles || tiles.length === 0) return null;
@@ -140,12 +126,48 @@ const MapRenderer: React.FC<MapRendererProps> = ({
     return nearestTile;
   };
 
+  const handleClick = useCallback(
+    (event: MouseEvent) => {
+
+      if ((event.target as HTMLElement).closest('.ui-element')) return;
+      if (isDragging || !camera || !tiles || tiles.length === 0) return;
+  
+      const mouse = new THREE.Vector2();
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, camera);
+  
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const intersectionPoint = new THREE.Vector3();
+      raycaster.ray.intersectPlane(plane, intersectionPoint);
+  
+      const clickedTile = findNearestTile(intersectionPoint, tiles);
+  
+      if (clickedTile) {
+        moveToTile(clickedTile);
+        focusOnTile(clickedTile);        
+        if(clickedTile == focusedTile){
+          setDialogOpen(true);
+        }
+      } else {
+        if (focusedTile) {
+          focusedTile.reset();
+          setFocusedTile(null);
+          setInfoBarOpen(false);
+          setDialogOpen(false);
+        }
+      }
+    },
+    [tiles, camera, isDragging, focusOnTile, focusedTile, setFocusedTile, setInfoBarOpen, setDialogOpen, moveToTile]
+  );
+
   const handleDescend = useCallback(() => {
     console.log("Descend Pressed");
     
     if (focusedTile && mapLevel > 1) {
       const selectedTile = tiles.find(tile => tile.q === focusedTile.q && tile.r === focusedTile.r);
-      
       
       if (selectedTile) {
         console.log("Selected Tile Recognized");
@@ -164,6 +186,26 @@ const MapRenderer: React.FC<MapRendererProps> = ({
     setFocusedTile(null);
     setInfoBarOpen(false);
   }, [focusedTile, tiles, onDescend, mapLevel]);
+
+  const handleAscend = useCallback(() => {
+    console.log("Ascend Pressed");
+    
+    if (focusedTile && mapLevel < 4) {  // Check if we're not at the maximum level
+      const selectedTile = tiles.find(tile => tile.q === focusedTile.q && tile.r === focusedTile.r);
+      
+      if (selectedTile) {
+        console.log("Selected Tile Recognized");
+        const newMapLevel = Math.min(mapLevel + 1, 4);  // Increase level, but cap at 4
+        const newMapData = {
+          mapLevel: newMapLevel,
+          parentTile: { q: selectedTile.q, r: selectedTile.r }
+        };
+        console.log(`newMapData: Level:${newMapData.mapLevel} Parent q:${newMapData.parentTile.q} r:${newMapData.parentTile.r}`);
+        onAscend(newMapData);
+      }
+    }
+    setInfoBarOpen(false);
+  }, [focusedTile, tiles, onAscend, mapLevel]);
 
   const setGraphicsQuality = (newQuality: "low" | "medium" | "high") => {
     if (!renderer) return;
@@ -206,7 +248,8 @@ const MapRenderer: React.FC<MapRendererProps> = ({
   }, [tiles]);
 
   return <>
-  <div className="absolute top-4 right-4 ui-element" onClick={(e) => e.stopPropagation()}>        
+  <div className="absolute top-4 right-4 ui-element" onClick={(e) => e.stopPropagation()}>  
+  <p>Player position: Q:{player?.getCoordinates().q}, R:{player?.getCoordinates().r}</p>     
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" className="text-white hover:text-black">
@@ -251,7 +294,7 @@ const MapRenderer: React.FC<MapRendererProps> = ({
         <SheetContent side="right" className="ui-element bg-white/75 hover:bg-white" onClick={(e) => e.stopPropagation()}
         >
           <SheetHeader>
-            <SheetTitle>Tile Info</SheetTitle>
+            <SheetTitle className="text-black">Tile Info</SheetTitle>
             <SheetDescription>
               {focusedTile && (
                 <>
@@ -264,13 +307,15 @@ const MapRenderer: React.FC<MapRendererProps> = ({
                 </>
               )}
 
-              <Button onClick={handleDescend}>Descend</Button>
+              
+              {mapLevel < 4 && <Button className="bg-blue-400" onClick={handleAscend}>Ascend</Button>}
+              {mapLevel > 1 && <Button className="bg-red-400" onClick={handleDescend}>Descend</Button>}
             </SheetDescription>
           </SheetHeader>
         </SheetContent>
       </Sheet>
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white/75 ui-element">
           <DialogHeader>
             <DialogTitle>Tile Actions</DialogTitle>
             <DialogDescription>

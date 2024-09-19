@@ -23,6 +23,12 @@ const HexagonalMap: React.FC<HexagonalMapProps> = ({ size, tileSize, tileHeight,
     setMapLevel(newMapData.mapLevel);
   }, []);
 
+  const handleAscend = useCallback((newMapData: { mapLevel: number; parentTile?: { q: number; r: number }}) => {
+    console.log(`Data passed to HexagonalMap: newMapData: Level:${newMapData.mapLevel} Parent q:${newMapData.parentTile?.q} r:${newMapData.parentTile?.r}`);
+    
+    setMapLevel(newMapData.mapLevel);
+  }, []);
+
   useEffect(() => {
     console.log(`Current map level: ${mapLevel}`);
     console.log(`Number of tiles: ${tiles.length}`);
@@ -38,7 +44,8 @@ const HexagonalMap: React.FC<HexagonalMapProps> = ({ size, tileSize, tileHeight,
         tileHeight={tileHeight}
         tiles={tiles}
         mapLevel={mapLevel}
-        onDescend={handleDescend}>
+        onDescend={handleDescend}
+        onAscend={handleAscend}>
       </ThreeJSSceneManager>
     </div>
   );
