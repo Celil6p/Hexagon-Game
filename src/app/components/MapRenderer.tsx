@@ -178,7 +178,6 @@ const MapRenderer: React.FC<MapRendererProps> = ({
           mapLevel: newMapLevel,
           parentTile: { q: selectedTile.q, r: selectedTile.r }
         };
-        console.log(`newMapData: Level:${newMapData.mapLevel} Parent q:${newMapData.parentTile.q} r:${newMapData.parentTile.r}`);
         onDescend(newMapData);
         //setCurrentMapLevel(newMapLevel);
       }
@@ -200,7 +199,6 @@ const MapRenderer: React.FC<MapRendererProps> = ({
           mapLevel: newMapLevel,
           parentTile: { q: selectedTile.q, r: selectedTile.r }
         };
-        console.log(`newMapData: Level:${newMapData.mapLevel} Parent q:${newMapData.parentTile.q} r:${newMapData.parentTile.r}`);
         onAscend(newMapData);
       }
     }
@@ -242,10 +240,6 @@ const MapRenderer: React.FC<MapRendererProps> = ({
       window.removeEventListener('click', handleClick);
     };
   }, [handleMouseDown, handleMouseMove, handleClick, tiles]);
-
-  useEffect(() => {
-    console.log("Tiles in MapRenderer:", tiles);
-  }, [tiles]);
 
   return <>
   <div className="absolute top-4 right-4 ui-element" onClick={(e) => e.stopPropagation()}>  

@@ -18,13 +18,11 @@ const HexagonalMap: React.FC<HexagonalMapProps> = ({ size, tileSize, tileHeight,
   const { tiles, scene } = useHexagonTiles(size, tileSize, tileHeight, mapLevel);
 
   const handleDescend = useCallback((newMapData: { q: number; r: number; mapLevel: number; parentTile?: { q: number; r: number } }) => {
-    console.log(`Data passed to HexagonalMap: newMapData: Level:${newMapData.mapLevel} Parent q:${newMapData.parentTile?.q} r:${newMapData.parentTile?.r}`);
     
     setMapLevel(newMapData.mapLevel);
   }, []);
 
   const handleAscend = useCallback((newMapData: { mapLevel: number; parentTile?: { q: number; r: number }}) => {
-    console.log(`Data passed to HexagonalMap: newMapData: Level:${newMapData.mapLevel} Parent q:${newMapData.parentTile?.q} r:${newMapData.parentTile?.r}`);
     
     setMapLevel(newMapData.mapLevel);
   }, []);
